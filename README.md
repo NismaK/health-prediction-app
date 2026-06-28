@@ -342,7 +342,7 @@ Retrieves patient data safely.
 
 #### Main Prediction Function
 ```python
-def predict_health_status(glucose, hemoglobin, cholesterol):
+def predict_health_status(glucose, haemoglobin, cholesterol):
     # Try API first
     api_prediction = predict_with_api(...)
     if api_prediction:
@@ -367,7 +367,7 @@ Checks glucose value against medical guidelines and generates recommendations.
 
 #### Health Score Calculation
 ```python
-def calculate_health_score(glucose, hemoglobin, cholesterol):
+def calculate_health_score(glucose, haemoglobin, cholesterol):
     score = 100
     
     if 70 <= glucose <= 100:
@@ -392,7 +392,7 @@ CREATE TABLE patients (
     date_of_birth     TEXT NOT NULL,
     email             TEXT NOT NULL UNIQUE,
     glucose           REAL NOT NULL,
-    hemoglobin        REAL NOT NULL,
+    haemoglobin        REAL NOT NULL,
     cholesterol       REAL NOT NULL,
     remarks           TEXT,
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -603,5 +603,3 @@ For issues or questions:
 ---
 
 **Happy Coding! 🚀**
-
-Built with ❤️ for beginners learning Full-Stack Development
