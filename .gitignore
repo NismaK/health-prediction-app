@@ -1,0 +1,30 @@
+# ============================================================
+# NEVER COMMIT THESE - Contains secrets or local-only data
+# ============================================================
+
+# Streamlit secrets (contains your real API key - NEVER push this!)
+.streamlit/secrets.toml
+
+# Patient database (contains real/test patient data, not code)
+patients.db
+
+# ============================================================
+# Python housekeeping
+# ============================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ============================================================
+# OS / Editor files
+# ============================================================
+.DS_Store
+.vscode/
+.idea/
+*.log
