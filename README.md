@@ -1,4 +1,5 @@
-# 🏥 Health Prediction Application
+# 🏥 Health Prediction Application 
+(https://health-prediction-app-kcsrrvkgpgjzpyzcpqqecc.streamlit.app/)
 
 A beginner-friendly web application for managing patient health records and predicting health risks using AI/ML. Built with **Streamlit** (frontend) and **Python** (backend) with **SQLite** database.
 
