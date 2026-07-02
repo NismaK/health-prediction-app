@@ -147,12 +147,12 @@ elif page == "➕ Add Patient":
                 help="Patient's complete name"
             )
             dob = st.date_input(
-                        "Date of Birth",
-                        value=datetime.strptime(patient[2], "%Y-%m-%d").date(),
-                        min_value=date(1900, 1, 1),
-                        max_value=date.today(),
-                        help="Select patient's date of birth (cannot be a future date)"
-                    )
+                "Date of Birth *",
+                value=date(2000, 1, 1),
+                min_value=date(1900, 1, 1),
+                max_value=date.today(),
+                help="Select patient's date of birth (cannot be a future date)"
+            )
             glucose = st.number_input(
                 "Glucose Level (mg/dL) *",
                 min_value=0.0,
@@ -376,7 +376,9 @@ elif page == "✏️ Update Patient":
                     dob = st.date_input(
                         "Date of Birth",
                         value=datetime.strptime(patient[2], "%Y-%m-%d").date(),
-                        help="Select patient's date of birth"
+                        min_value=date(1900, 1, 1),
+                        max_value=date.today(),
+                        help="Select patient's date of birth (cannot be a future date)"
                     )
                     glucose = st.number_input(
                         "Glucose Level (mg/dL)",
