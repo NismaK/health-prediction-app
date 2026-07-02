@@ -9,9 +9,7 @@ import os
 import requests
 
 
-
 HF_MODEL_URL = "https://router.huggingface.co/v1/chat/completions"
-
 
 HF_MODEL_CANDIDATES = [
     "deepseek-ai/DeepSeek-V3-0324:fireworks-ai",
@@ -29,7 +27,7 @@ def get_hf_api_key():
     Returns:
         str or None: The API key if found, otherwise None
     """
-
+    
     try:
         import streamlit as st
         try:
@@ -78,7 +76,53 @@ def predict_health_status(glucose, hemoglobin, cholesterol):
     )
 
 
-def predict_with_api(glucose, hemoglobin, cholesterol):
+def _analyse_values(glucose, hemoglobin, cholesterol):
+    """
+    Perform all numerical comparisons in Python — reliably.
+    Returns a plain-English summary of findings to pass to the AI,
+    so the model never has to evaluate whether a number is above or
+    below a threshold itself.
+    """
+    findings = []
+    risks = []
+
+    # --- Glucose ---
+    if glucose < 70:
+        findings.append(f"Glucose is {glucose} mg/dL, which is BELOW the normal range of 70-99 mg/dL (hypoglycaemia).")
+        risks.append("hypoglycaemia")
+    elif glucose <= 99:
+        findings.append(f"Glucose is {glucose} mg/dL, which is WITHIN the normal range of 70-99 mg/dL.")
+    elif glucose <= 125:
+        findings.append(f"Glucose is {glucose} mg/dL, which is ABOVE the normal range and in the prediabetic range of 100-125 mg/dL.")
+        risks.append("prediabetes")
+    else:
+        findings.append(f"Glucose is {glucose} mg/dL, which is ABOVE the diabetic threshold of 126 mg/dL.")
+        risks.append("diabetes")
+
+    # --- Haemoglobin ---
+    if hemoglobin < 12.0:
+        findings.append(f"Haemoglobin is {hemoglobin} g/dL, which is BELOW the normal range of 12.0-17.5 g/dL (anaemia).")
+        risks.append("anaemia")
+    elif hemoglobin <= 17.5:
+        findings.append(f"Haemoglobin is {hemoglobin} g/dL, which is WITHIN the normal range of 12.0-17.5 g/dL.")
+    else:
+        findings.append(f"Haemoglobin is {hemoglobin} g/dL, which is ABOVE the normal range of 12.0-17.5 g/dL (elevated haemoglobin).")
+        risks.append("elevated haemoglobin")
+
+    # --- Cholesterol ---
+    if cholesterol < 200:
+        findings.append(f"Cholesterol is {cholesterol} mg/dL, which is WITHIN the desirable range of below 200 mg/dL.")
+    elif cholesterol <= 239:
+        findings.append(f"Cholesterol is {cholesterol} mg/dL, which is in the BORDERLINE HIGH range of 200-239 mg/dL.")
+        risks.append("borderline high cholesterol")
+    else:
+        findings.append(f"Cholesterol is {cholesterol} mg/dL, which is ABOVE the high threshold of 240 mg/dL.")
+        risks.append("high cholesterol")
+
+    risk_summary = ", ".join(risks) if risks else "no abnormal values detected"
+    findings_text = "\n".join(f"- {f}" for f in findings)
+
+    return findings_text, risk_summary
     """
     Call the Hugging Face Inference API (router-based, OpenAI-compatible
     chat completions endpoint) to generate a health assessment.
@@ -96,31 +140,25 @@ def predict_with_api(glucose, hemoglobin, cholesterol):
         reason = "no HF_API_KEY found in .streamlit/secrets.toml or environment variables"
         return None, reason
 
+    findings_text, risk_summary = _analyse_values(glucose, hemoglobin, cholesterol)
+
     prompt = (
-        "You are a clinical assistant writing a structured health risk note. "
-        "Use ONLY the values provided. Do NOT invent or misquote reference ranges. "
-        "Do NOT give a generic cardiovascular warning if cholesterol is below 200 mg/dL.\n\n"
-        "Standard reference ranges you MUST follow strictly:\n"
-        "- Glucose: Normal = 70-99 mg/dL | Prediabetic = 100-125 mg/dL | Diabetic = 126+ mg/dL\n"
-        "- Haemoglobin: Normal = 12.0-17.5 g/dL | Low (anaemia) = below 12.0 g/dL | High = above 17.5 g/dL\n"
-        "- Cholesterol: Desirable = below 200 mg/dL | Borderline High = 200-239 mg/dL | High = 240+ mg/dL\n\n"
-        f"Patient values:\n"
-        f"- Glucose: {glucose} mg/dL\n"
-        f"- Haemoglobin: {hemoglobin} g/dL\n"
-        f"- Cholesterol: {cholesterol} mg/dL\n\n"
-        "Instructions:\n"
-        "1. Compare each value against the reference ranges above.\n"
-        "2. Identify which values are abnormal and which are normal.\n"
-        "3. If a value is within the normal range, explicitly state it is normal — do not flag it as a risk.\n"
-        "4. Base your risk level only on values that are actually outside the normal range.\n\n"
+        "You are a clinical assistant writing a structured health note for a patient's record. "
+        "A Python program has already compared the patient's blood test values against standard "
+        "reference ranges. Your only job is to write a professional clinical narrative based on "
+        "these pre-computed findings. Do NOT re-evaluate the numbers yourself. "
+        "Do NOT contradict the findings below.\n\n"
+        "Pre-computed findings (these are factually correct — use them as-is):\n"
+        f"{findings_text}\n\n"
+        f"Identified risk(s): {risk_summary}\n\n"
         "Write your response in exactly this structure:\n\n"
-        "**Primary Risk Assessment:** One sentence naming the specific risk(s) based only on "
-        "the abnormal values, and whether the risk is mild, moderate, or significant. "
-        "If all values are normal, state the patient appears healthy.\n\n"
-        "**Clinical Rationale:** Two to three sentences citing the exact patient values and "
-        "comparing them to the reference ranges above. State clearly which values are normal "
-        "and which are not.\n\n"
-        "**Recommended Action:** One specific, practical next step appropriate to the actual findings.\n\n"
+        "**Primary Risk Assessment:** One sentence summarising the identified risk(s) "
+        "from the findings above. If no risks were identified, state the patient's "
+        "values are within normal ranges.\n\n"
+        "**Clinical Rationale:** Two to three sentences explaining the findings, "
+        "referencing the specific values and ranges listed above. "
+        "Only mention a value as a risk if it is explicitly flagged as abnormal above.\n\n"
+        "**Recommended Action:** One specific, practical next step appropriate to the findings.\n\n"
         "Do not use emojis. Do not use exclamation marks. Be precise and clinical."
     )
 
