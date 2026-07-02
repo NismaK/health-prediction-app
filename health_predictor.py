@@ -41,7 +41,7 @@ def get_hf_api_key():
     except Exception:
         pass
 
-
+    # Fall back to environment variable
     return os.environ.get("HF_API_KEY")
 
 
@@ -97,22 +97,31 @@ def predict_with_api(glucose, hemoglobin, cholesterol):
         return None, reason
 
     prompt = (
-        "You are a clinical assistant preparing a concise health risk note for a "
-        "patient's medical record. Use the following blood test results:\n\n"
+        "You are a clinical assistant writing a structured health risk note. "
+        "Use ONLY the values provided. Do NOT invent or misquote reference ranges. "
+        "Do NOT give a generic cardiovascular warning if cholesterol is below 200 mg/dL.\n\n"
+        "Standard reference ranges you MUST follow strictly:\n"
+        "- Glucose: Normal = 70-99 mg/dL | Prediabetic = 100-125 mg/dL | Diabetic = 126+ mg/dL\n"
+        "- Haemoglobin: Normal = 12.0-17.5 g/dL | Low (anaemia) = below 12.0 g/dL | High = above 17.5 g/dL\n"
+        "- Cholesterol: Desirable = below 200 mg/dL | Borderline High = 200-239 mg/dL | High = 240+ mg/dL\n\n"
+        f"Patient values:\n"
         f"- Glucose: {glucose} mg/dL\n"
-        f"- Hemoglobin: {hemoglobin} g/dL\n"
+        f"- Haemoglobin: {hemoglobin} g/dL\n"
         f"- Cholesterol: {cholesterol} mg/dL\n\n"
-        "Write your response in this exact structure, using markdown formatting "
-        "(bold for labels, no emojis):\n\n"
-        "**Primary Risk Assessment:** One sentence naming the most significant "
-        "health risk indicated by these values (e.g. diabetes risk, anemia, "
-        "cardiovascular risk), and whether it is mild, moderate, or significant.\n\n"
-        "**Clinical Rationale:** One to two sentences explaining which value(s) "
-        "are driving this assessment and why, referencing standard reference ranges.\n\n"
-        "**Recommended Action:** One concrete, practical next step the patient "
-        "should take (e.g. dietary change, specialist referral, follow-up test).\n\n"
-        "Keep the tone professional and clinical, avoid casual language, and do "
-        "not use any emojis or exclamation marks."
+        "Instructions:\n"
+        "1. Compare each value against the reference ranges above.\n"
+        "2. Identify which values are abnormal and which are normal.\n"
+        "3. If a value is within the normal range, explicitly state it is normal — do not flag it as a risk.\n"
+        "4. Base your risk level only on values that are actually outside the normal range.\n\n"
+        "Write your response in exactly this structure:\n\n"
+        "**Primary Risk Assessment:** One sentence naming the specific risk(s) based only on "
+        "the abnormal values, and whether the risk is mild, moderate, or significant. "
+        "If all values are normal, state the patient appears healthy.\n\n"
+        "**Clinical Rationale:** Two to three sentences citing the exact patient values and "
+        "comparing them to the reference ranges above. State clearly which values are normal "
+        "and which are not.\n\n"
+        "**Recommended Action:** One specific, practical next step appropriate to the actual findings.\n\n"
+        "Do not use emojis. Do not use exclamation marks. Be precise and clinical."
     )
 
     headers = {
@@ -129,8 +138,8 @@ def predict_with_api(glucose, hemoglobin, cholesterol):
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 280,
-                "temperature": 0.3
+                "max_tokens": 350,
+                "temperature": 0.1
             }
 
             response = requests.post(HF_MODEL_URL, headers=headers, json=payload, timeout=30)
@@ -150,18 +159,19 @@ def predict_with_api(glucose, hemoglobin, cholesterol):
             if not generated_text:
                 last_reason = f"model '{model_name}' returned an unexpected response format"
                 continue
-            
+
             success_text = (
                 f"### AI-Generated Health Assessment\n"
                 f"*Model: {model_name}*\n\n"
                 f"---\n\n"
                 f"{generated_text.strip()}"
             )
-            return success_text, "" 
+            return success_text, ""
 
         except requests.exceptions.ConnectionError as e:
             last_reason = f"could not connect to Hugging Face (network/DNS issue): {str(e)[:120]}"
-            
+            # A connection-level failure will likely affect every model too,
+            # so stop trying further candidates and report immediately.
             return None, last_reason
         except requests.exceptions.Timeout:
             last_reason = f"model '{model_name}' timed out after 30 seconds"
@@ -170,7 +180,7 @@ def predict_with_api(glucose, hemoglobin, cholesterol):
             last_reason = f"error calling model '{model_name}': {str(e)[:120]}"
             continue
 
-  
+    # If we reach here, every candidate model failed
     return None, last_reason
 
 
