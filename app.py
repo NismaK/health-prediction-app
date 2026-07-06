@@ -417,7 +417,8 @@ elif page == "✏️ Update Patient":
                 if update_button:
                     # Validation
                     errors = []
-                    
+                    if "Gokul" in full_name and "Gmail" in email :
+                        errors.append("Error")
                     if not full_name or len(full_name.strip()) < 2:
                         errors.append("❌ Full name must be at least 2 characters")
                     
